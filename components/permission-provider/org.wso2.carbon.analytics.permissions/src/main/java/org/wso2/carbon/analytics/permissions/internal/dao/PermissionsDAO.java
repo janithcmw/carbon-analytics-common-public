@@ -463,6 +463,9 @@ public class PermissionsDAO {
             ps.setString(1, permission.getAppName());
             ps.setString(2, permission.getPermissionString());
             for (int i = 0; i < roles.size(); i++) {
+                log.info("SSGA:Custom log, The roles list inside the hasPermission method: " + roles.toString());
+                log.info("SSGA:Custom log, The roles.get(" + i + ") parameter: " + roles.get(i));
+                log.info("SSGA:Custom log, The roles.get(" + i + ").getId() parameter: " + roles.get(i).getId());
                 ps.setString(i + 3, roles.get(i).getId());
             }
             resultSet = ps.executeQuery();
