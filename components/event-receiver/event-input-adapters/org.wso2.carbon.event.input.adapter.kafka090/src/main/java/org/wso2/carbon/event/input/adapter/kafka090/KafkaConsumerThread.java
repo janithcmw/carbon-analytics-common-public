@@ -44,6 +44,10 @@ public class KafkaConsumerThread implements Runnable {
     private final Lock consumerLock = new ReentrantLock();
     private final KafkaConsumer<byte[], byte[]> consumer;
     private boolean enableAsyncCommit;
+    private long totalLatency = 0;
+    private long totalEvents = 0;
+    private long startedTime;
+    private long singleLatencyStartedTime;
 
     public KafkaConsumerThread(Properties props, String topic,
                                InputEventAdapterListener inBrokerListener, int inTenantId, boolean enableAsyncCommit) {
@@ -53,6 +57,8 @@ public class KafkaConsumerThread implements Runnable {
         brokerListener = inBrokerListener;
         tenantId = inTenantId;
         this.enableAsyncCommit = enableAsyncCommit;
+        startedTime = System.currentTimeMillis();
+        singleLatencyStartedTime = startedTime;
     }
 
     public void run() {
@@ -71,6 +77,8 @@ public class KafkaConsumerThread implements Runnable {
                     // takes time and if this value is small, there will be an CommitFailedException while
                     // trying to retrieve data
                     records = consumer.poll(100);
+                    singleLatencyStartedTime = System.currentTimeMillis();
+                    totalEvents += records.count();
                 } catch (CommitFailedException ex) {
                     log.warn("Consumer poll() failed." + ex.getMessage(), ex);
                 } finally {
@@ -87,6 +95,13 @@ public class KafkaConsumerThread implements Runnable {
                                 consumer.commitAsync(new KafkaOffsetCommitCallback());
                             } else {
                                 try {
+                                    totalLatency +=  System.currentTimeMillis() - singleLatencyStartedTime;
+                                    if (System.currentTimeMillis() - startedTime > 1000) {
+                                        startedTime = System.currentTimeMillis();
+                                        log.info("Current Latency:  "+ (totalLatency/totalEvents));
+                                        totalLatency = 0;
+                                        totalEvents = 0;
+                                    }
                                     consumer.commitSync();
                                 } catch (KafkaException e) {
                                     log.error("Exception occurred when committing offsets Synchronously", e);
